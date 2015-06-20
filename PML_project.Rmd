@@ -1,0 +1,86 @@
+---
+title: "Machine Learning Project"
+author: "Kenneth Rebella"
+output: html_document
+---
+## Overview 
+
+In order to predict the *classe* of the exercises from the testing csv, I will have to build a predictive model. I decided to use random forest as my method.  
+
+### Loading the Data
+First I must load the proper libraries. For this, I used ggplot2, caret, and randomForest. I then can load the data.  
+
+```{r}
+suppressWarnings(library(ggplot2))
+suppressWarnings(library(caret))
+suppressWarnings(library(randomForest))
+
+Train_data <- read.csv("pml-training.csv",na.strings = c("NA", ""))
+Predict_data <- read.csv("pml-testing.csv", na.strings = c("NA", ""))
+```
+
+### Cleaning Data
+
+In order for the formula to run more effectively, I must first clean up the data. I used a pretty simple clean the data and remove those columns what were populated with N/As. 
+
+I summed all the number of NAs in each columns. Using a table, I can see which number of NA. Then using that information I can find the names of the columns with mostly NA values, and remove them.  
+
+```{r, echo=TRUE}
+empty <- sapply(Train_data, function(x) {sum(is.na(x))})
+table(empty)
+```
+
+I also removed the first seven columns because they contain unneeded information. 
+
+```{r, echo=TRUE}
+empty_column_names <- names(empty[empty==19216])
+training <- Train_data[, !names(Train_data) %in% empty_column_names]
+training <- training[,-c(1:7)]
+
+```
+
+###Splitting the Data
+
+To get a more accurate idea of the error rate of my model, I split the training data into a final training set as well as an additional test set. I used the `createDataPartition` function and set `p = 0.75`.
+
+```{r, echo =TRUE}
+inTrain <- createDataPartition(y=training$classe, p = 0.75, list = FALSE)
+final_training <- training[inTrain,]
+testing <- training[-inTrain,]
+```
+
+### Creating the Model
+Below is the formula for my model. It took a very long time to run. In order to not "create" the model multiple times, I saved the model to a file `model1.rda`.
+
+```{r, eval=FALSE, echo=TRUE}
+set.seed(1234)
+modelFit <- train(classe ~., method="rf", data=final_training, trControl=trainControl(method='cv'), number=5, allowParallel=TRUE )
+```
+
+Here, I just loaded the model. And you can see that it used cross validation with 10 folds 
+
+```{r, echo=TRUE}
+load("model1.rda")
+modelFit
+```
+
+### Running the Model
+
+I use the predict function to run my model on the testing data I set a side earlier. 
+
+```{r,echo = TRUE}
+test_results <- predict(modelFit, newdata = testing)
+```
+
+### Confusion Matrix
+
+To find the effectiveness of my model, I ran a confusion matrix to see the model's accuracy. 
+
+```{r, echo=TRUE}
+confusionMatrix(test_results, testing$classe)
+```
+
+Based off of the confusion matrix we can see that the model has an accurate of 99.84%. With a confidence interval between 99.68% and 99.93%. Our expected error is between **0.32%** and **0.07%**. 
+
+*For some reason after setting the seed, my results are still fluctuating, so the confidence interval and the accuracy numbers might be slightly off.  
+ 
